@@ -32,6 +32,7 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\Files\NotFoundException;
 use OCP\IL10N;
 use OCP\IPreview;
@@ -57,8 +58,15 @@ class TemplateController extends Controller {
 
     /**
      * Get templates
+     *
+     * Returns the list of admin-uploaded global templates. Marked PublicPage so
+     * public-share folder visitors can fetch the list — they go through the JS
+     * `addNewFileMenuEntry` path (not NC's PHP TemplateFileCreator, which is
+     * gated to authenticated users) and need the templates client-side to drive
+     * the Vue picker. Read-only and only exposes admin-curated content.
      */
     #[NoAdminRequired]
+    #[PublicPage]
     public function getTemplates(): DataResponse {
         $templatesList = TemplateManager::getGlobalTemplates();
 
