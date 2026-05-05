@@ -25,6 +25,7 @@
 
 namespace OCA\Eurooffice;
 
+use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use UnexpectedValueException;
@@ -44,7 +45,11 @@ class Crypt {
      * @param array $object - object to signature
      */
     public function getHash(array $object): string {
-        return JWT::encode($object, $this->appConfig->getSKey(), "HS256");
+        try {
+            return JWT::encode($object, $this->appConfig->getSKey(), "HS256");
+        } catch (DomainException $e) {
+            throw new \RuntimeException("JWT secret key is too short (minimum 32 characters required). Please update the Secret Key in Nextcloud Office settings.", 0, $e);
+        }
     }
 
     /**
@@ -60,7 +65,7 @@ class Crypt {
         }
         try {
             $result = JWT::decode($token, new Key($this->appConfig->getSKey(), "HS256"));
-        } catch (UnexpectedValueException $e) {
+        } catch (DomainException | UnexpectedValueException $e) {
             $error = $e->getMessage();
         }
         return [$result, $error];

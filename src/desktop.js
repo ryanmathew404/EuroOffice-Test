@@ -21,27 +21,27 @@
  *
  */
 
-/* global $, _, _oc_appswebroots, oc_current_user  */
+/* global _, _oc_appswebroots, oc_current_user  */
 
 /**
  * @param {object} OCA Nextcloud OCA object
  */
 (function(OCA) {
 
-	OCA.Onlyoffice = _.extend({}, OCA.Onlyoffice)
+	OCA.Eurooffice = Object.assign({}, OCA.Eurooffice)
 
 	if (!window.AscDesktopEditor) {
 		return
 	}
 
-	OCA.Onlyoffice.Desktop = true
+	OCA.Eurooffice.Desktop = true
 
 	if (location.pathname.indexOf(_oc_appswebroots.dashboard) !== -1) {
 		location.pathname = location.pathname.split(_oc_appswebroots.dashboard)[0] + _oc_appswebroots.files + '/'
 		return
 	}
 
-	$('html').addClass('AscDesktopEditor')
+	document.documentElement.classList.add('AscDesktopEditor')
 
 	let domain = /^http(s)?:\/\/[^\\/]+/.exec(location)[0]
 	domain += OC.getRootPath()

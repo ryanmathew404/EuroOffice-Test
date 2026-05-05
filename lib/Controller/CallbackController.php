@@ -585,7 +585,7 @@ class CallbackController extends Controller {
         ?string $userId,
         ?int $fileId,
         string $filePath = "",
-        int $version = 0,
+        ?int $version = 0,
         bool $template = false
     ): array {
         if (empty($fileId)) {
@@ -652,7 +652,7 @@ class CallbackController extends Controller {
      * @param string $shareToken - access token
      * @param integer $version - file version
      */
-    private function getFileByToken(int $fileId, string $shareToken, int $version = 0): array {
+    private function getFileByToken(int $fileId, string $shareToken, ?int $version = 0): array {
         [$share, $error] = $this->getShare($shareToken);
 
         if (isset($error)) {

@@ -566,6 +566,13 @@ class AppConfig {
         if (empty($secret)) {
             $secret = $this->getSystemValue($this->_cryptSecret, true);
         }
+        if (empty($secret)) {
+            // No key configured — derive a stable 32-byte key from the NC instance secret
+            // so JWT encode/decode still works internally (callback URLs round-trip correctly).
+            // This is NOT shared with the document server, so verification across the boundary
+            // is effectively disabled until the admin sets a real Secret Key in settings.
+            $secret = hash('sha256', $this->config->getSystemValue('secret', ''), false);
+        }
         return (string)$secret;
     }
 
@@ -1197,7 +1204,7 @@ class AppConfig {
      */
     #[NoAdminRequired]
     public function formatsSetting(): array {
-        $result = $this->buildOnlyofficeFormats();
+        $result = $this->buildEuroofficeFormats();
 
         $defFormats = $this->getDefaultFormats();
         foreach ($defFormats as $format => $setting) {
@@ -1286,35 +1293,35 @@ class AppConfig {
     }
 
     /**
-     * Get ONLYOFFICE formats list
+     * Get Nextcloud Office formats list
      */
-    private function buildOnlyofficeFormats(): array {
+    private function buildEuroofficeFormats(): array {
         try {
             $euroofficeFormats = $this->getFormats();
             $result = [];
             $additionalFormats = $this->getAdditionalFormatAttributes();
 
             if ($euroofficeFormats !== false) {
-                foreach ($euroofficeFormats as $onlyOfficeFormat) {
-                    if ($onlyOfficeFormat["name"]
-                        && $onlyOfficeFormat["mime"]
-                        && $onlyOfficeFormat["type"]
-                        && $onlyOfficeFormat["actions"]
-                        && $onlyOfficeFormat["convert"]) {
-                        $result[$onlyOfficeFormat["name"]] = [
-                            "mime" => $onlyOfficeFormat["mime"],
-                            "type" => $onlyOfficeFormat["type"],
-                            "edit" => in_array("edit", $onlyOfficeFormat["actions"], true),
-                            "editable" => in_array("lossy-edit", $onlyOfficeFormat["actions"], true),
-                            "conv" => in_array("auto-convert", $onlyOfficeFormat["actions"], true),
-                            "fillForms" => in_array("fill", $onlyOfficeFormat["actions"], true),
-                            "comment" => in_array("comment", $onlyOfficeFormat["actions"], true),
-                            "saveas" => $onlyOfficeFormat["convert"],
-                            "review" => in_array("review", $onlyOfficeFormat["actions"], true),
-                            "modifyFilter" => in_array("customfilter", $onlyOfficeFormat["actions"], true),
+                foreach ($euroofficeFormats as $format) {
+                    if ($format["name"]
+                        && $format["mime"]
+                        && $format["type"]
+                        && $format["actions"]
+                        && $format["convert"]) {
+                        $result[$format["name"]] = [
+                            "mime" => $format["mime"],
+                            "type" => $format["type"],
+                            "edit" => in_array("edit", $format["actions"], true),
+                            "editable" => in_array("lossy-edit", $format["actions"], true),
+                            "conv" => in_array("auto-convert", $format["actions"], true),
+                            "fillForms" => in_array("fill", $format["actions"], true),
+                            "comment" => in_array("comment", $format["actions"], true),
+                            "saveas" => $format["convert"],
+                            "review" => in_array("review", $format["actions"], true),
+                            "modifyFilter" => in_array("customfilter", $format["actions"], true),
                         ];
-                        if (isset($additionalFormats[$onlyOfficeFormat["name"]])) {
-                            $result[$onlyOfficeFormat["name"]] = array_merge($result[$onlyOfficeFormat["name"]], $additionalFormats[$onlyOfficeFormat["name"]]);
+                        if (isset($additionalFormats[$format["name"]])) {
+                            $result[$format["name"]] = array_merge($result[$format["name"]], $additionalFormats[$format["name"]]);
                         }
                     }
                 }
@@ -1389,9 +1396,9 @@ class AppConfig {
         $euroofficeFormats = $this->getFormats();
         $result = "text/plain";
 
-        foreach ($euroofficeFormats as $onlyOfficeFormat) {
-            if ($onlyOfficeFormat["name"] === $ext && !empty($onlyOfficeFormat["mime"])) {
-                $result = $onlyOfficeFormat["mime"][0];
+        foreach ($euroofficeFormats as $format) {
+            if ($format["name"] === $ext && !empty($format["mime"])) {
+                $result = $format["mime"][0];
                 break;
             }
         }
@@ -1403,7 +1410,7 @@ class AppConfig {
      * DEMO DATA
      */
     private array $DEMO_PARAM = [
-        "ADDR" => "https://onlinedocs.docs.onlyoffice.com/",
+        "ADDR" => "", // TODO: set Nextcloud Office demo server URL
         "HEADER" => "AuthorizationJWT",
         "SECRET" => "sn2puSUF7muF5Jas",
         "TRIAL" => 30

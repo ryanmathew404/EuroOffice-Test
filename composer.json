@@ -2,9 +2,8 @@
     "name": "eurooffice/eurooffice-nextcloud",
     "authors": [
         {
-            "name": "Ascensio System SIA",
-            "email": "integration@onlyoffice.com",
-            "homepage": "https://www.onlyoffice.com/"
+            "name": "Euro-Office contributors",
+            "homepage": "https://github.com/Euro-Office"
         }
     ],
     "autoload": {
@@ -13,7 +12,6 @@
         }
     },
     "require": {
-        "php": ">=8.1 <8.5",
-        "firebase/php-jwt": "^6.0"
+        "firebase/php-jwt": "^7.0"
     }
 }

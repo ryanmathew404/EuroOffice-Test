@@ -21,162 +21,117 @@
  *
  */
 
-/* global _, jQuery */
+/* global _ */
+
+import axios from '@nextcloud/axios'
+import { spawnDialog } from '@nextcloud/vue/functions/dialog'
+import { defineAsyncComponent } from 'vue'
 
 /**
- * @param {object} $ JQueryStatic object
  * @param {object} OC Nextcloud OCA object
  */
-(function($, OC) {
+(function(OC) {
 
-	OCA.Onlyoffice = _.extend({
+	OCA.Eurooffice = Object.assign({
 		AppName: 'eurooffice',
 		templates: null,
-	}, OCA.Onlyoffice)
+	}, OCA.Eurooffice)
 
-	OCA.Onlyoffice.OpenTemplatePicker = function(name, extension, type) {
-
-		$('#eurooffice-template-picker').remove()
-
-		$.get(OC.filePath(OCA.Onlyoffice.AppName, 'templates', 'templatePicker.html'),
-			function(tmpl) {
-				const $tmpl = $(tmpl)
-				const dialog = $tmpl.octemplate({
-					dialog_name: 'eurooffice-template-picker',
-					dialog_title: t(OCA.Onlyoffice.AppName, 'Select template'),
-				})
-
-				OCA.Onlyoffice.AttachTemplates(dialog, type)
-
-				$('body').append(dialog)
-
-				$('#eurooffice-template-picker').ocdialog({
-					closeOnEscape: true,
-					modal: true,
-					buttons: [{
-						text: t('core', 'Cancel'),
-						classes: 'cancel',
-						click() {
-							$(this).ocdialog('close')
-						},
-					}, {
-						text: t(OCA.Onlyoffice.AppName, 'Create'),
-						classes: 'primary',
-						click() {
-							const templateId = this.dataset.templateId
-							const fileList = OCA.Files.App.fileList
-							OCA.Onlyoffice.CreateFile(name + extension, fileList, templateId)
-							$(this).ocdialog('close')
-						},
-					}],
-				})
-			})
+	OCA.Eurooffice.OpenTemplatePicker = function(name, extension, type) {
+		spawnDialog(
+			defineAsyncComponent(() => import('./views/TemplatePickerDialog.vue')),
+			{
+				fileName: name + extension,
+				type,
+			},
+		)
 	}
 
-	OCA.Onlyoffice.GetTemplates = function() {
-		if (OCA.Onlyoffice.templates != null) {
+	OCA.Eurooffice.GetTemplates = function() {
+		if (OCA.Eurooffice.templates != null) {
 			return
 		}
 
-		$.get(OC.generateUrl('apps/' + OCA.Onlyoffice.AppName + '/ajax/template'),
-			function onSuccess(response) {
-				if (response.error) {
-					OC.Notification.show(response.error, {
+		axios.get(OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/template'))
+			.then((response) => {
+				const data = response.data
+				if (data.error) {
+					OC.Notification.show(data.error, {
 						type: 'error',
 						timeout: 3,
 					})
 					return
 				}
 
-				OCA.Onlyoffice.templates = response
-
+				OCA.Eurooffice.templates = data
+			})
+			.catch((error) => {
+				console.error('Eurooffice: failed to fetch templates list', error)
+				OCA.Eurooffice.templates = []
 			})
 	}
 
-	OCA.Onlyoffice.AddTemplate = function(file, callback) {
+	OCA.Eurooffice.AddTemplate = function(file, callback) {
 		const data = new FormData()
 		data.append('file', file)
 
-		$.ajax({
-			method: 'POST',
-			url: OC.generateUrl('apps/' + OCA.Onlyoffice.AppName + '/ajax/template'),
-			data,
-			processData: false,
-			contentType: false,
-			success: function onSuccess(response) {
-				if (response.error) {
-					callback(null, response.error)
+		axios.post(OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/template'), data)
+			.then((response) => {
+				const data = response.data
+				if (data.error) {
+					callback(null, data.error)
 					return
 				}
 
-				callback(response, null)
-			},
-		})
-	}
-
-	OCA.Onlyoffice.DeleteTemplate = function(templateId, callback) {
-		$.ajax({
-			method: 'DELETE',
-			url: OC.generateUrl('apps/' + OCA.Onlyoffice.AppName + '/ajax/template?templateId={templateId}',
-				{
-					templateId,
-				}),
-			success: function onSuccess(response) {
-				if (response) {
-					callback(response)
-				}
-			},
-		})
-	}
-
-	OCA.Onlyoffice.AttachTemplates = function(dialog, type) {
-		const emptyItem = dialog[0].querySelector('.eurooffice-template-item')
-
-		OCA.Onlyoffice.templates.forEach(template => {
-			if (template.type !== type) {
-				return
-			}
-			const item = emptyItem.cloneNode(true)
-
-			$(item.querySelector('label')).attr('for', 'template_picker-' + template.id)
-			item.querySelector('input').id = 'template_picker-' + template.id
-			item.querySelector('img').src = template.icon
-			item.querySelector('p').textContent = template.name
-			item.onclick = function() {
-				dialog[0].dataset.templateId = template.id
-			}
-			dialog[0].querySelector('.eurooffice-template-container').appendChild(item)
-		})
-
-		$(emptyItem.querySelector('label')).attr('for', 'template_picker-0')
-		emptyItem.querySelector('input').id = 'template_picker-0'
-		emptyItem.querySelector('input').checked = true
-		emptyItem.querySelector('img').src = OC.generateUrl('/core/img/filetypes/x-office-' + type + '.svg')
-		emptyItem.querySelector('p').textContent = t(OCA.Onlyoffice.AppName, 'Empty')
-		emptyItem.onclick = function() {
-			dialog[0].dataset.templateId = '0'
-		}
-	}
-
-	OCA.Onlyoffice.AttachItemTemplate = function(template) {
-		$.get(OC.filePath(OCA.Onlyoffice.AppName, 'templates', 'templateItem.html'),
-			function(item) {
-				item = $(item)
-
-				item.attr('data-id', template.id)
-				item.children('img').attr('src', template.icon)
-				item.children('p').text(template.name)
-
-				$('.eurooffice-template-container').append(item)
+				callback(data, null)
+			})
+			.catch((error) => {
+				callback(null, error.message || 'Failed to add template')
 			})
 	}
 
-	OCA.Onlyoffice.TemplateExist = function(type) {
-		const isExist = OCA.Onlyoffice.templates.some((template) => {
+	OCA.Eurooffice.DeleteTemplate = function(templateId, callback) {
+		axios.delete(OC.generateUrl('apps/' + OCA.Eurooffice.AppName + '/ajax/template?templateId={templateId}',
+			{
+				templateId,
+			}))
+			.then((response) => {
+				if (response.data) {
+					callback(response.data)
+				}
+			})
+	}
+
+	OCA.Eurooffice.AttachItemTemplate = function(template) {
+		axios.get(OC.filePath(OCA.Eurooffice.AppName, 'templates', 'templateItem.html'))
+			.then((response) => {
+				const tempDiv = document.createElement('div')
+				tempDiv.innerHTML = response.data
+				const item = tempDiv.firstElementChild
+
+				item.setAttribute('data-id', template.id)
+				const img = item.querySelector('img')
+				if (img) {
+					img.setAttribute('src', template.icon)
+				}
+				const p = item.querySelector('p')
+				if (p) {
+					p.textContent = template.name
+				}
+
+				const container = document.querySelector('.eurooffice-template-container')
+				if (container) {
+					container.appendChild(item)
+				}
+			})
+	}
+
+	OCA.Eurooffice.TemplateExist = function(type) {
+		const isExist = OCA.Eurooffice.templates.some((template) => {
 			return template.type === type
 		})
 
 		return isExist
 	}
 
-})(jQuery, OC)
+})(OC)
