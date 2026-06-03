@@ -2819,27 +2819,26 @@ define([
                 }
 
                 if ( config.canProtect ) {
-                    // FileOpen owner restriction dot-list — present whenever the view was created.
                     var dpController  = me.getApplication().getController('DocProtection'),
                         hasOwnerPanel = !!(dpController && dpController.view);
 
-                    // Always use the common Protection panel as the wrapper — it provides the
-                    // correct <section class="panel"> structure that addTab requires.
-                    // In browser mode it may contain no native buttons, but it's still the
-                    // correct container; bare group divs passed directly to addTab render outside the tab.
-                    $panel = me.getApplication().getController('Common.Controllers.Protection').createToolbarPanel();
-
-                    if ($panel && hasOwnerPanel) {
-                        // Append owner dot-list into the common panel wrapper
+                    if (hasOwnerPanel) {
+                        // Browser-mode owner panel: build a proper <section class="panel"> wrapper
+                        // ourselves so addTab works correctly. Do NOT rely on Common.Controllers.Protection
+                        // which may have no view (setMode is only called when signature/password support exists).
+                        tab = {action: 'protect', caption: me.toolbar.textTabProtect, layoutname: 'toolbar-protect', dataHintTitle: 'T'};
+                        $panel = $('<section id="protection-panel" class="panel" data-tab="protect" role="tabpanel" aria-labelledby="protect"></section>');
                         $panel.append(dpController.createToolbarPanel());
-                        tab = {action: 'protect', caption: me.toolbar.textTabProtect, layoutname: 'toolbar-protect', dataHintTitle: 'T'};
                         me.toolbar.addTab(tab, $panel, 8);
                         me.toolbar.setVisible('protect', Common.UI.LayoutManager.isElementVisible('toolbar-protect'));
-                    } else if ($panel && config.isDesktopApp && (config.isSignatureSupport || config.isPasswordSupport)) {
-                        // Desktop-only: native protection buttons with no owner panel
+                    } else if (config.isDesktopApp && (config.isSignatureSupport || config.isPasswordSupport)) {
+                        // Desktop-only native protection (Encrypt/Signature) — no owner panel
                         tab = {action: 'protect', caption: me.toolbar.textTabProtect, layoutname: 'toolbar-protect', dataHintTitle: 'T'};
-                        me.toolbar.addTab(tab, $panel, 8);
-                        me.toolbar.setVisible('protect', Common.UI.LayoutManager.isElementVisible('toolbar-protect'));
+                        $panel = me.getApplication().getController('Common.Controllers.Protection').createToolbarPanel();
+                        if ($panel) {
+                            me.toolbar.addTab(tab, $panel, 8);
+                            me.toolbar.setVisible('protect', Common.UI.LayoutManager.isElementVisible('toolbar-protect'));
+                        }
                     }
                 }
 
