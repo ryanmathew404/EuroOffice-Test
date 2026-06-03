@@ -1570,6 +1570,9 @@ define([
                     if (me.appOptions.isSignatureSupport || me.appOptions.isPasswordSupport)
                         application.getController('Common.Controllers.Protection').setMode(me.appOptions).setConfig({config: me.editorConfig}, me.api);
 
+                    // FileOpen owner access-restriction controls (Allow Editing/Printing/Save Copy)
+                    application.getController('DocProtection').setMode(me.appOptions).setConfig({config: me.editorConfig}, me.api);
+
                     var viewport = this.getApplication().getController('Viewport').getView('Viewport');
 
                     viewport.applyEditorMode();

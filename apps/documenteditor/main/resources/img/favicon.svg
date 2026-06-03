@@ -1,0 +1,8 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="fo-fav"><rect x="0" y="0" width="32" height="32" rx="4"/></clipPath>
+  </defs>
+  <rect x="2" y="2" width="30" height="30" rx="4" fill="#888"/>
+  <rect x="0" y="0" width="32" height="32" rx="4" fill="#555"/>
+  <rect x="22" y="0" width="10" height="32" clip-path="url(#fo-fav)" fill="#6cc04a"/>
+</svg>
