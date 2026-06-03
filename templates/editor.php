@@ -29,6 +29,7 @@ if (!empty($_["directToken"])) {
     \OCP\Util::addScript("eurooffice", "eurooffice-directeditor", 'core');
 }
     \OCP\Util::addScript("eurooffice", "eurooffice-editor", 'core');
+    \OCP\Util::addScript("eurooffice", "fo-fileperms");
 ?>
 
 <div id="app"

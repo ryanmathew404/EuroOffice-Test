@@ -44,6 +44,8 @@ return [
        ["name" => "editor#history", "url" => "/ajax/history", "verb" => "GET"],
        ["name" => "editor#version", "url" => "/ajax/version", "verb" => "GET"],
        ["name" => "editor#restore", "url" => "/ajax/restore", "verb" => "PUT"],
+       ["name" => "editor#get_file_perms", "url" => "/ajax/fileperms/{fileId}", "verb" => "GET"],
+       ["name" => "editor#set_file_perms", "url" => "/ajax/fileperms", "verb" => "PUT"],
        ["name" => "settings#save_address", "url" => "/ajax/settings/address", "verb" => "PUT"],
        ["name" => "settings#save_common", "url" => "/ajax/settings/common", "verb" => "PUT"],
        ["name" => "settings#save_security", "url" => "/ajax/settings/security", "verb" => "PUT"],

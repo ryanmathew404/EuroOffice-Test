@@ -34,6 +34,7 @@ use OCA\Eurooffice\AppConfig;
 use OCA\Eurooffice\Crypt;
 use OCA\Eurooffice\DocumentService;
 use OCA\Eurooffice\EmailManager;
+use OCA\Eurooffice\FilePermissions;
 use OCA\Eurooffice\FileUtility;
 use OCA\Eurooffice\FileVersions;
 use OCA\Eurooffice\KeyManager;
@@ -94,6 +95,7 @@ class EditorController extends Controller {
         private readonly ?FolderManager $folderManager,
         private readonly IInitialState $initialState,
         private readonly IAppManager $appManager,
+        private readonly FilePermissions $filePermissions,
     ) {
         parent::__construct($appName, $request);
     }
@@ -1357,6 +1359,23 @@ class EditorController extends Controller {
             $this->appManager->isEnabledForUser('assistant')
         );
 
+        // Provide file-level access restriction info for the owner UI panel
+        if (!empty($fileId) && $isLoggedIn && empty($shareToken)) {
+            $user     = $this->userSession->getUser();
+            $userId   = $user ? $user->getUID() : null;
+            if ($userId) {
+                [$file, $err] = $this->getFile($userId, $fileId, $filePath ?? '');
+                if (!isset($err) && $file !== null) {
+                    $owner   = $file->getOwner();
+                    $ownerId = $owner ? $owner->getUID() : null;
+                    $isOwner = $ownerId === $userId;
+                    $this->initialState->provideInitialState('is-owner', $isOwner);
+                    $this->initialState->provideInitialState('editor-file-id', (int)$file->getId());
+                    $this->initialState->provideInitialState('file-perms', $this->filePermissions->get((int)$file->getId()));
+                }
+            }
+        }
+
         \OCP\Util::addHeader("meta", ["name" => "apple-touch-fullscreen", "content" => "yes"]);
 
         $csp = new ContentSecurityPolicy();
@@ -1573,5 +1592,68 @@ class EditorController extends Controller {
                 ]
             ]
         ], "error");
+    }
+
+    /**
+     * Get file-level access restrictions (set by the file owner).
+     *
+     * @param int $fileId
+     * @return DataResponse
+     */
+    #[NoAdminRequired]
+    public function getFilePerms(int $fileId): DataResponse {
+        if (!$this->appConfig->isUserAllowedToUse()) {
+            return new DataResponse(["error" => $this->trans->t("Not permitted")]);
+        }
+
+        $user = $this->userSession->getUser();
+        if (empty($user)) {
+            return new DataResponse(["error" => $this->trans->t("Not permitted")]);
+        }
+
+        $perms = $this->filePermissions->get($fileId);
+        return new DataResponse($perms);
+    }
+
+    /**
+     * Save file-level access restrictions. Only the file owner may call this.
+     *
+     * @param int  $fileId
+     * @param bool $allowPrint
+     * @param bool $allowDownload
+     * @param bool $allowEdit
+     * @return DataResponse
+     */
+    #[NoAdminRequired]
+    public function setFilePerms(int $fileId, bool $allowPrint = true, bool $allowDownload = true, bool $allowEdit = true): DataResponse {
+        if (!$this->appConfig->isUserAllowedToUse()) {
+            return new DataResponse(["error" => $this->trans->t("Not permitted")]);
+        }
+
+        $user = $this->userSession->getUser();
+        if (empty($user)) {
+            return new DataResponse(["error" => $this->trans->t("Not permitted")]);
+        }
+
+        $userId = $user->getUID();
+
+        // Verify caller is the file owner
+        [$file, $error] = $this->getFile($userId, $fileId);
+        if (isset($error)) {
+            return new DataResponse(["error" => $error]);
+        }
+
+        $owner = $file->getOwner();
+        $ownerId = $owner ? $owner->getUID() : null;
+        if ($ownerId !== $userId) {
+            return new DataResponse(["error" => $this->trans->t("Not permitted")]);
+        }
+
+        $ok = $this->filePermissions->set($fileId, $allowPrint, $allowDownload, $allowEdit);
+        if (!$ok) {
+            return new DataResponse(["error" => $this->trans->t("Failed to save permissions")]);
+        }
+
+        return new DataResponse(["message" => "ok"]);
     }
 }

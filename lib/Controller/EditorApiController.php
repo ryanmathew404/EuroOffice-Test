@@ -30,6 +30,7 @@ use OCA\Eurooffice\AppConfig;
 use OCA\Eurooffice\Crypt;
 use OCA\Eurooffice\DocumentService;
 use OCA\Eurooffice\ExtraPermissions;
+use OCA\Eurooffice\FilePermissions;
 use OCA\Eurooffice\FileUtility;
 use OCA\Eurooffice\TemplateManager;
 use OCP\AppFramework\Http\JSONResponse;
@@ -84,7 +85,8 @@ class EditorApiController extends OCSController {
         private readonly TimezoneService $timezoneService,
         private readonly FileUtility $fileUtility,
         private readonly IAvatarManager $avatarManager,
-        private readonly ExtraPermissions $extraPermissions
+        private readonly ExtraPermissions $extraPermissions,
+        private readonly FilePermissions $filePermissions,
     ) {
         parent::__construct($appName, $request);
     }
@@ -281,21 +283,27 @@ class EditorApiController extends OCSController {
                     && $file->isUpdateable()
                     && (empty($shareToken) || ($share->getPermissions() & Constants::PERMISSION_UPDATE) === Constants::PERMISSION_UPDATE)
                     && !$restrictedEditing;
+
+        // Determine file owner early — needed for both protection and file-level permissions
+        $ownerId = null;
+        $ownerObj = $file->getOwner();
+        if (!empty($ownerObj)) {
+            $ownerId = $ownerObj->getUID();
+        }
+        $isOwner = !empty($userId) && $ownerId === $userId;
+
+        // Read owner-set file-level access restrictions
+        $filePerms = $this->filePermissions->get((int)$file->getId());
+
         $params["document"]["permissions"]["edit"] = $editable && !$isTempLock;
         if (($editable || $restrictedEditing) && ($canEdit || $canFillForms) && !$isTempLock) {
-            $ownerId = null;
-            $owner = $file->getOwner();
-            if (!empty($owner)) {
-                $ownerId = $owner->getUID();
-            }
-
             $canProtect = true;
             if ($this->appConfig->getProtection() === "owner") {
                 $canProtect = $ownerId === $userId;
             }
             $params["document"]["permissions"]["protect"] = $canProtect;
 
-            if (isset($shareToken)) {
+            if (!empty($shareToken)) {
                 $params["document"]["permissions"]["chat"] = false;
                 $params["document"]["permissions"]["protect"] = false;
             }
@@ -460,6 +468,37 @@ class EditorApiController extends OCSController {
             $params["document"]["permissions"]["download"] = false;
             $params["document"]["permissions"]["print"] = false;
             $params["document"]["permissions"]["copy"] = false;
+        }
+
+        // Apply owner-set file-level restrictions for non-owners
+        if (!$isOwner) {
+            if (!$filePerms["allowPrint"]) {
+                $params["document"]["permissions"]["print"] = false;
+            }
+            if (!$filePerms["allowDownload"]) {
+                $params["document"]["permissions"]["download"] = false;
+                $params["document"]["permissions"]["copy"] = false;
+            }
+            if (!$filePerms["allowEdit"]) {
+                $params["document"]["permissions"]["edit"] = false;
+                $params["editorConfig"]["mode"] = "view";
+                unset($params["editorConfig"]["callbackUrl"]);
+            }
+        }
+
+        // Pass permissions info to the frontend JS (for owner UI panel)
+        $params["_is_owner"] = $isOwner;
+        $params["_fo_file_permissions"] = $filePerms;
+
+        // Inject owner perms config into the editor customization so DocProtection.js
+        // can render the Allow-Print / Allow-Save-Copy controls in the Protection tab.
+        if ($isOwner && empty($shareToken)) {
+            $params["editorConfig"]["customization"]["foOwnerPerms"] = [
+                "isOwner"      => true,
+                "allowEdit"    => (bool)$filePerms["allowEdit"],
+                "allowPrint"   => (bool)$filePerms["allowPrint"],
+                "allowDownload"=> (bool)$filePerms["allowDownload"],
+            ];
         }
 
         if ($inframe) {
